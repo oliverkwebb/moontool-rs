@@ -25,73 +25,39 @@
 // See http://www.fourmilab.ch/moontool/
 
 /// 1980 January 0.0
-const epoch: f64 = 2444238.5;
+const EPOCH: f64 = 2444238.5;
 /// Ecliptic longitude of the Sun at epoch 1980.0
-const elonge: f64 = 278.833540;
+const ELONGE: f64 = 278.833540;
 /// Ecliptic longitude of the Sun at perigee
-const elongp: f64 = 282.596403;
+const ELONGP: f64 = 282.596403;
 /// Eccentricity of Earth's orbit
-const eccent: f64 = 0.016718;
+const ECCENT: f64 = 0.016718;
 /// Synodic month (new Moon to new Moon)
-const synmonth: f64 = 29.53058868;
+const SYNMONTH: f64 = 29.53058868;
 
 fn fixangle(a: f64) -> f64 {
-	a-360.0 * ((a / 360.0)).floor()
-}
-
-/// Year, Month, and Day structure
-struct Ymd {
-	year: i32,
-	month: i32,
-	day: i32,
-}
-
-/// Convert Julian date to year, month, day, which are  returned via integer pointers to integers.
-fn jyear(td: f64) -> Ymd {
-  let mut j = (td+0.5).floor() - 1721119.0; // Astronomical to civil
-  let mut y = (((4.0 * j) - 1.0) / 146097.0).floor();
-  j = (j * 4.0) - (1.0 + (146097.0 * y));
-  let mut d = (j / 4.0).floor();
-  j = (((4.0 * d) + 3.0) / 1461.0).floor();
-  d = ((4.0 * d) + 3.0) - (1461.0 * j);
-  d = ((d + 4.0) / 4.0).floor();
-  let mut m = (((5.0 * d) - 3.0) / 153.0).floor();
-  d = (5.0 * d) - (3.0 + (153.0 * m));
-  d = ((d + 5.0) / 5.0).floor();
-  y = (100.0 * y) + j;
-  if m < 10.0 {
-    m += 3.0
-  }
-  else {
-    m -= 9.0;
-    y += 1.0;
-  }
-  Ymd {
-  	year: y as i32,
-  	month: m as i32,
-  	day: d as i32,
-  }
+    a - 360.0 * (a / 360.0).floor()
 }
 
 /// Solve the equation of Kepler
 fn kepler(mut m: f64, ecc: f64) -> f64 {
-  m = m.to_radians();
-  let mut e = m;
-  let mut delta: f64;
+    m = m.to_radians();
+    let mut e = m;
+    let mut delta: f64;
 
-  delta = e - ecc * e.sin() - m;
-  e -= delta / (1.0 - ecc * e.cos());
-  while delta.abs() > 1E-6 {
     delta = e - ecc * e.sin() - m;
     e -= delta / (1.0 - ecc * e.cos());
-  }
-  return e;
+    while delta.abs() > 1E-6 {
+        delta = e - ecc * e.sin() - m;
+        e -= delta / (1.0 - ecc * e.cos());
+    }
+    return e;
 }
 
-struct MoonState {
-	precent: f64,
-	pphase: f64,
-	mage: f64,
+pub struct MoonState {
+    pub precent: f64,
+    pub pphase: f64,
+    pub mage: f64,
 }
 
 /// PHASE  --  Calculate phase of moon as a fraction:
@@ -107,54 +73,54 @@ struct MoonState {
 ///
 /// pphase:		Illuminated fraction
 /// mage:		Age of moon in days
-fn phase(pdate: f64) -> MoonState {
-  let mut ec;
+pub fn phase(pdate: f64) -> MoonState {
+    let mut ec;
 
-  /* Calculation of the Sun's position */
-  let day = pdate - epoch; /* Date within epoch */
-  let m = fixangle(fixangle((360.0 / 365.2422) * day) + elonge - elongp); /* Convert from perigee co-ordinates to epoch 1980.0 */
-  ec = kepler(m, eccent); /* Solve equation of Kepler */
-  ec = ((1.0 + eccent) / (1.0 - eccent)).sqrt() * (ec / 2.0).tan();
-  ec = 2.0 * ec.atan().to_degrees(); /* True anomaly */
-  let lambdasun = fixangle(ec + elongp); /* Sun's geocentric ecliptic longitude */
+    /* Calculation of the Sun's position */
+    let day = pdate - EPOCH; /* Date within epoch */
+    let m = fixangle(fixangle((360.0 / 365.2422) * day) + ELONGE - ELONGP); /* Convert from perigee co-ordinates to epoch 1980.0 */
+    ec = kepler(m, ECCENT); /* Solve equation of Kepler */
+    ec = ((1.0 + ECCENT) / (1.0 - ECCENT)).sqrt() * (ec / 2.0).tan();
+    ec = 2.0 * ec.atan().to_degrees(); /* True anomaly */
+    let lambdasun = fixangle(ec + ELONGP); /* Sun's geocentric ecliptic longitude */
 
-  /* Moon's mean longitude */
-  let ml = fixangle(13.1763966 * day + 64.975464); /* Moon's mean lonigitude at the epoch */
+    /* Moon's mean longitude */
+    let ml = fixangle(13.1763966 * day + 64.975464); /* Moon's mean lonigitude at the epoch */
 
-  /* Moon's mean anomaly */
-  let mm = fixangle(ml - 0.1114041 * day - 349.383063); /* 349:  Mean longitude of the perigee at the epoch */
-  eprintln!("{}", mm);
+    /* Moon's mean anomaly */
+    let mm = fixangle(ml - 0.1114041 * day - 349.383063); /* 349:  Mean longitude of the perigee at the epoch */
 
-  /* Evection */
-  let ev = 1.2739 * (2.0 * (ml - lambdasun) - mm).to_radians().sin();
+    /* Evection */
+    let ev = 1.2739 * (2.0 * (ml - lambdasun) - mm).to_radians().sin();
 
-  /* Annual equation */
-  let ae = 0.1858 * m.to_radians().sin();
+    /* Annual equation */
+    let ae = 0.1858 * m.to_radians().sin();
 
-  /* Corrected anomaly */
-  let mmp = mm + ev - ae - (0.37 * m.to_radians().sin());
+    /* Corrected anomaly */
+    let mmp = mm + ev - ae - (0.37 * m.to_radians().sin());
 
-  /* Corrected longitude */
-  let lp = ml + ev + (6.2886 * mmp.to_radians().sin()) - ae + (0.214 * (2.0 * mmp).to_radians().sin());
+    /* Corrected longitude */
+    let lp =
+        ml + ev + (6.2886 * mmp.to_radians().sin()) - ae + (0.214 * (2.0 * mmp).to_radians().sin());
 
-  /* True longitude */
-  let lpp = lp + (0.6583 * (2.0 * (lp - lambdasun).to_radians().sin()));
+    /* True longitude */
+    let lpp = lp + (0.6583 * (2.0 * (lp - lambdasun).to_radians().sin()));
 
-  /* Age of the Moon in degrees */
-  let moonage = lpp - lambdasun;
+    /* Age of the Moon in degrees */
+    let moonage = lpp - lambdasun;
 
-  MoonState {
-  	pphase: (1.0 - moonage.to_radians().cos()) / 2.0,
-  	mage:  synmonth * (fixangle(moonage) / 360.0),
-    precent: fixangle(moonage) / 360.0,
-  }
+    MoonState {
+        pphase: (1.0 - moonage.to_radians().cos()) / 2.0,
+        mage: SYNMONTH * (fixangle(moonage) / 360.0),
+        precent: fixangle(moonage) / 360.0,
+    }
 }
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	#[test]
-	fn test_moon() {
-		assert_eq!(phase(2460740.165938).pphase, 0.3940552678252821);
-	}
+    use super::*;
+    #[test]
+    fn test_moon() {
+        assert_eq!(phase(2460740.165938).pphase, 0.3940552678252821);
+    }
 }
