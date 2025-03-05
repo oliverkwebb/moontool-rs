@@ -1,0 +1,9 @@
+[package]
+name = "moontool-rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chrono = "0.4.39"
+clap = { version = "4.5.29", features = ["derive"] }
+julian = "0.7.0"
