@@ -1,7 +1,4 @@
 use clap::Parser;
-use julian::system2jdn;
-use moontool_rs::astro::phase;
-use std::time::SystemTime;
 
 /// A program to print formatted information about the moon
 #[derive(Parser, Debug)]
@@ -28,34 +25,20 @@ const PNAMES: [&str; 8] = [
 
 fn phaseidx(ilumfrac: f64, mage: f64) -> usize {
     let half: bool = mage > HALFMON;
-    match ilumfrac {
-        0.00..0.04 => 0,
-        0.96..1.00 => 4,
-        0.46..0.54 => {
-            if half {
-                6
-            } else {
-                2
-            }
-        }
-        0.54..0.96 => {
-            if half {
-                5
-            } else {
-                3
-            }
-        }
-        _ => {
-            if half {
-                7
-            } else {
-                1
-            }
-        }
+
+    match (ilumfrac, half) {
+        (0.00..0.04, _) => 0,
+        (0.96..1.00, _) => 4,
+        (0.46..0.54, true) => 6,
+        (0.46..0.54, false) => 2,
+        (0.54..0.96, true) => 5,
+        (0.54..0.96, false) => 3,
+        (_, true) => 7,
+        (_, false) => 1,
     }
 }
 
-fn mprintf(p: moontool_rs::astro::MoonState, f: &str) -> String {
+fn mprintf(p: (f64, f64), f: &str) -> String {
     let mut s = String::new();
     let mut chr = f.chars();
     let mut x: String;
@@ -66,16 +49,16 @@ fn mprintf(p: moontool_rs::astro::MoonState, f: &str) -> String {
                 Some('t') => "\t",
                 Some('%') => "%",
                 Some('a') => {
-                    x = format!("{}", p.mage);
+                    x = format!("{}", p.1);
                     &x
                 }
                 Some('P') => {
-                    x = format!("{:.2}", p.pphase * 100.0);
+                    x = format!("{:.2}", p.0 * 100.0);
                     &x
                 }
-                Some('e') => EMOJIS[phaseidx(p.pphase, p.mage)],
-                Some('s') => SEMOJI[phaseidx(p.pphase, p.mage)],
-                Some('p') => PNAMES[phaseidx(p.pphase, p.mage)],
+                Some('e') => EMOJIS[phaseidx(p.0, p.1)],
+                Some('s') => SEMOJI[phaseidx(p.0, p.1)],
+                Some('p') => PNAMES[phaseidx(p.0, p.1)],
                 _ => break,
             }),
             x => s.push(x),
@@ -85,8 +68,6 @@ fn mprintf(p: moontool_rs::astro::MoonState, f: &str) -> String {
 }
 
 fn main() {
-    let jdate_split = system2jdn(SystemTime::now()).unwrap();
-    let jdate = jdate_split.0 as f64 + ((jdate_split.1 as f64) / 86400.0) - 0.5;
-    let p = phase(jdate);
+    let p = pracstro::moon::MOON.phase(pracstro::time::Date::now());
     println!("{}", mprintf(p, "%p %e (%P%%)"));
 }
